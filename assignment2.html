@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/weatherstyle.css">
+        <!--<link rel="stylesheet" href="weatherstyle.css">-->
+        <style>
+            body
+            {
+                background-color: rgba(212, 211, 211, 1);
+            }    
+        </style>
+
+
+        <script src="https://code.highcharts.com/highcharts.js"></script>
+        <script src="https://code.highcharts.com/highcharts-more.js"></script>
+        <script src="https://code.highcharts.com/modules/datagrouping.js"></script>
+        <script src="https://code.highcharts.com/modules/windbarb.js"></script>
+        <script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
+        <script src="https://code.highcharts.com/modules/data.js"></script>
+        <script src="https://code.highcharts.com/modules/exporting.js"></script>
+        <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+
+        <script>
+            var state;
+            var city;
+            var addressOut;
+            var items = ['hum', 'pres', 'wind', 'vis', 'cloud', 'uv'];
+            var itemsH = ['humH', 'presH', 'windH', 'visH', 'cloudH', 'uvH'];
+            var imgName = ['humidity', 'Pressure', 'Wind_Speed', 'Visibility', 'Cloud_Cover', 'UV_Level'];
+            var itemsNum = ['humNum', 'presNum', 'windNum', 'visNum', 'cloudNum', 'uvNum'];
+            var names = ['Humidity', 'Pressure', 'Wind Speed', 'Visibility', 'Cloud Cover', 'UV Level'];
+            var jsonNames = ['humidity', 'pressureSeaLevel', 'windSpeed', 'visibility', 'cloudCover', 'uvIndex'];
+            var jsonDayNames = ['startTime', 'weatherCode', 'temperatureMax', 'temperatureMin', 'windSpeed'];
+            var cardSymbol = ['%', 'inHg', 'mph', 'mi', '%', ''];
+            var locationLocal;
+            var clickRow = -1;
+            var dataParse;
+            var checkBoxMark;
+            function clearText()
+            {
+                const textClear = document.querySelectorAll('input[type="text"]');
+                for(let i = 0; i < textClear.length; i++)
+                {
+                    textClear[i].value = '';        
+                }
+            }
+            function clearContainer()
+            {
+                const container1 = document.getElementById('idCard');
+                if(container1)
+                {
+                    container1.remove();
+                }
+                const container2 = document.getElementById('tableDiv');
+                if(container2)
+                {
+                    container2.remove();
+                }
+                const container3 = document.getElementById('detailInfo');
+                if(container3)
+                {
+                    container3.remove();
+                }
+                const container4 = document.getElementById('arrowImgD');
+                if(container4)
+                {
+                    container4.remove();
+                }
+                const container5 = document.getElementById('expandSec');
+                if(container5)
+                {
+                    container5.remove();
+                }
+                const container6 = document.getElementById('detailInfoBH');
+                if(container6)
+                {
+                    container6.remove();
+                }
+
+            }
+            function requireField()
+            {
+                const firstText = document.getElementById("addS");
+                const secondText = document.getElementById("addC");
+                const thirdField = document.getElementById("addSt");
+                if(this.checked)
+                {
+                    firstText.removeAttribute("required");
+                    secondText.removeAttribute("required");
+                    thirdField.removeAttribute("required");
+                    console.log("remove");
+                }
+                else
+                {
+                    firstText.setAttribute("required", "");
+                    secondText.setAttribute("required", "");
+                    thirdField.setAttribute("required", "");
+                    console.log("add back");
+                }
+            }
+            async function callAPI()
+            {
+                //let locationLocal;
+                const checkField = document.getElementById("chckBox");
+                if(checkBoxMark)
+                {
+                    const response = await fetch('https://ipinfo.io/json?token=')
+                    .then((response) => response.json())
+                    .then((jsonResponse) => {
+                        locationLocal = jsonResponse.loc;
+                        state = jsonResponse.region;
+                        city = jsonResponse.city;});
+                    console.log(locationLocal);
+                    if(clickRow > -1)
+                    {
+                        console.log("Inside Adv");
+                        sentAdvData(locationLocal);
+                    }
+                    else
+                    {
+                        sentData(locationLocal);
+                    }
+                }
+                else
+                {
+                    let addS = document.getElementById('addS').value;
+                    let addC = document.getElementById('addC').value;
+                    let addState = document.getElementById('addSt');
+                    let selectState = addState.options[addState.selectedIndex].text;
+
+                    let address = addS + "," + addC + "," + addState.value;
+                    let addressF = address.replace(/\s+/g, '+');
+                    console.log("Address: " + addressF);
+                    addressOut = addS;
+                    city = addC;
+                    state = selectState;
+                    callGeo(addressF);
+                    //sentData(loc);
+                }
+            }
+            async function callGeo(address)
+            {
+                //let locationLocal;
+                let lat;
+                let lng;
+                try
+                {
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${apiKey}`)
+                    .then((response) => response.json())
+                    .then((jsonResponse) => {
+                        lat = jsonResponse.results[0].geometry.location.lat;
+                        lng = jsonResponse.results[0].geometry.location.lng;});
+                    console.log("successful1");
+                }
+                catch (error)
+                {
+                   let state = address.split(',').pop();
+                   console.log(state);
+                   address = state;
+                   const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${apiKey}`)
+                    .then((response) => response.json())
+                    .then((jsonResponse) => {
+                        lat = jsonResponse.results[0].geometry.location.lat;
+                        lng = jsonResponse.results[0].geometry.location.lng;});
+                   console.log("successful2");
+                   city = '';
+                }
+
+
+                locationLocal = lat + "," + lng;
+                console.log("Geo: " + locationLocal);
+                if(clickRow > -1)
+                {
+                    sentAdvData(locationLocal);
+                }
+                else
+                {
+                    sentData(locationLocal);
+                }
+            }
+            function sentData(file)
+            {
+                console.log("testSent")
+                const xmlR= new XMLHttpRequest();
+                <!-- <How to talke to python flask>, (3), ChartGPT -->
+                xmlR.open("POST", '/api/loc', true);
+                xmlR.setRequestHeader("Content-Type", "application/json");
+                xmlR.send(JSON.stringify(file));
+                <!-- <How to talke to python flask>, (1), ChartGPT -->
+                xmlR.onreadystatechange = function ()
+                {
+                    <!-- <How to talke to python flask>, (1), ChartGPT -->
+                    if(xmlR.readyState === 4 && xmlR.status === 200)
+                    {
+                        let currentData;
+                        let response;
+                        console.log("testReceived2")
+                        try
+                        {
+                             response = JSON.parse(xmlR.responseText)
+                             currentData = response.data.timelines.find(t => t.timestep === "current").intervals[0].values.weatherCode;
+                        }
+                        catch(e)
+                        {
+                            createError();
+                            throw e;
+                        }
+
+                        createCard();
+                        let outputCard = document.getElementById('cardHeader');
+                        if(checkBoxMark)
+                        {
+                            outputCard.innerHTML = city + ", " + state;
+                        }
+                        else if(city === '')
+                        {
+                            outputCard.innerHTML = state + ' USA';
+                        }
+                        else
+                        {
+                           outputCard.innerHTML = addressOut + "," + city + ", " + state;
+                        }
+
+                        /*Weather Card Status Symbol*/
+                        let weatherSymbolName = findSymbol(currentData);
+                        let weatherSymbolDiv = document.getElementById('weatherSymbolID');
+                        let imgElement = document.createElement('img');
+                        imgElement.src = `/static/images/WeatherSymbol/${weatherSymbolName}.svg`;
+                        weatherSymbolDiv.appendChild(imgElement);
+
+                        let weatherSymbolNote = document.createElement('p');
+                        let weatherDesc = weatherSymbolName.replace(/_day$/,'').replace(/_/g, ' ');
+                        weatherDesc= weatherDesc.charAt(0).toUpperCase() + weatherDesc.slice(1);
+                        weatherSymbolNote.textContent = weatherDesc;
+                        weatherSymbolDiv.appendChild(weatherSymbolNote);
+                        //weatherDesc = document.createTextNode(weatherDesc);
+                        //weatherSymbolDiv.appendChild(weatherDesc);
+
+
+                        /*Weather Temperature */
+                        let weatherTemp = document.getElementById('tempID');
+                        currentData = response.data.timelines.find(t => t.timestep === "current").intervals[0].values.temperature;
+                        weatherTemp.innerHTML = Math.round(currentData)+ "°";
+
+                        /*Weather Card Detail Data*/
+                        for(let i = 0; i < 6; i++)
+                        {
+                            outputH = document.getElementById(itemsH[i]);
+                            outputH.innerHTML = names[i];
+                            outputNum = document.getElementById(itemsNum[i]);
+                            let currentData = response.data.timelines.find(t => t.timestep === "current").intervals[0].values[jsonNames[i]];
+                            outputNum.innerHTML = currentData + cardSymbol[i];
+                        }
+
+                        createTable();
+                        let table = document.getElementById('tableID');
+                        for(let i = 0; i < 6; i++)
+                        {
+                            for(let j = 0; j < 5; j++)
+                            {
+                                if(j === 0)
+                                {
+                                    currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[i].startTime;
+                                    let date = new Date(currentData);
+                                    <!-- <How to format Date with specific format>, (1), ChartGPT -->
+                                    let formatDate = date.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'});
+                                    let formatDateF = formatDate.replace(/(^\w+)/, '$1,');
+                                    table.rows[i+1].cells[j].textContent = formatDateF;
+                                }
+                                else if(j === 1)
+                                {
+                                    k = i + 1;
+                                    let col2 = document.getElementById('col2'+k);
+                                    let imgElement = document.createElement('img');
+                                    currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[i].values[jsonDayNames[j]];
+                                    let image = findSymbol(currentData);
+                                    imgElement.src = `/static/images/WeatherSymbol/${image}.svg`;
+                                    col2.appendChild(imgElement);
+                                    /*Adding Weather Status in the weekly table*/
+                                    let weatherDesc = image.replace(/_day$/,'').replace(/_/g, ' ');
+                                    weatherDesc= weatherDesc.charAt(0).toUpperCase() + weatherDesc.slice(1);
+                                    weatherDesc = document.createTextNode(weatherDesc);
+                                    col2.appendChild(weatherDesc);
+                                }
+                                else
+                                {
+                                    currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[i].values[jsonDayNames[j]];
+                                    table.rows[i+1].cells[j].textContent = currentData;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            function sentAdvData(file)
+            {
+                console.log("AdvSent")
+                const xmlR= new XMLHttpRequest();
+                xmlR.open("POST", '/api/adv', true);
+                xmlR.setRequestHeader("Content-Type", "application/json");
+                xmlR.send(JSON.stringify(file));
+                try {
+                    xmlR.onreadystatechange = function () {
+                        if (xmlR.readyState === 4 && xmlR.status === 200) {
+                            createDetail();
+                            let header = document.getElementById('detailInfoH');
+                            header.innerHTML = 'Daily Weather Details';
+                            let response = JSON.parse(xmlR.responseText)
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].startTime;
+                            let date = new Date(currentData);
+                            <!-- <How to format date>, (1), ChartGPT -->
+                            let formatDate = date.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'});
+                            let formatDateF = formatDate.replace(/(^\w+)/, '$1,');
+                            let detailBasic = document.getElementById('detailInfoB');
+                            let timeDesc = document.createElement('p');
+                            timeDesc.textContent = formatDateF;
+                            timeDesc.style.color = '#324260';
+                            timeDesc.style.marginBottom = '10px';
+                            detailBasic.appendChild(timeDesc);
+
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.weatherCode;
+                            let weatherCode = findSymbol(currentData);
+                            let weatherStatus = document.createElement('p');
+                            let weatherDesc = weatherCode.replace(/_day$/, '').replace(/_/g, ' ');
+                            weatherDesc = weatherDesc.charAt(0).toUpperCase() + weatherDesc.slice(1);
+                            weatherStatus.textContent = weatherDesc;
+                            weatherStatus.style.color = '#324260';
+
+                            detailBasic.appendChild(weatherStatus);
+
+                            /*Adding weather images*/
+                            let weatherImg = document.getElementById('detailInfoImg');
+                            let imgElement = document.createElement('img');
+                            imgElement.src = `/static/images/WeatherSymbol/${weatherCode}.svg`;
+                            weatherImg.appendChild(imgElement);
+
+                            /*Adding max/min weather*/
+                            let maxTemp = document.createElement('p');
+                            let max = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.temperatureMax;
+                            let min = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.temperatureMin;
+                            maxTemp.textContent = max + "°F/" + min + "°F";
+                            maxTemp.style.color = '#324260';
+                            maxTemp.style.fontSize = '40px';
+                            maxTemp.style.fontFamily = 'Arial';
+                            detailBasic.appendChild(maxTemp);
+
+                            /*Adding precipitation*/
+                            let fix = document.createElement('div');
+                            fix.classList.add('fix');
+                            fix.setAttribute('id', 'fixID');
+
+                            let prec = document.createElement('p');
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.precipitationType;
+                            prec.innerHTML = "Precipitation: ";
+
+                            let detailAdv = document.getElementById('detailInfoAdv');
+                            detailAdv.appendChild(prec);
+                            detailAdv.appendChild(fix)
+
+                            prec = document.createElement('p');
+                            prec.textContent = mapPrecipitation(currentData);
+                            let fixOut = document.getElementById('fixID');
+                            fixOut.appendChild(prec);
+
+                            /*Adding precipitation chance*/
+                            prec = document.createElement('p');
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.precipitationProbability;
+                            prec.innerHTML = "Chance of Rain: ";
+                            detailAdv.appendChild(prec);
+
+                            prec = document.createElement('p');
+                            prec.textContent = currentData + "%";
+                            fixOut.appendChild(prec);
+
+                            /*Adding wind speed*/
+                            prec = document.createElement('p');
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.windSpeed;
+                            prec.innerHTML = "Wind Speed:";
+                            detailAdv.appendChild(prec);
+
+                            prec = document.createElement('p');
+                            prec.textContent = currentData + ' mph';
+                            fixOut.appendChild(prec);
+
+                            /*Adding humidity*/
+                            prec = document.createElement('p');
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.humidity;
+                            prec.innerHTML = "Humidity: ";
+                            detailAdv.appendChild(prec);
+
+                            prec = document.createElement('p');
+                            prec.textContent = currentData + '%';
+                            fixOut.appendChild(prec);
+
+                            /*Adding humidity*/
+                            prec = document.createElement('p');
+                            currentData = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.visibility;
+                            prec.innerHTML = "Visibility: ";
+                            detailAdv.appendChild(prec);
+
+                            prec = document.createElement('p');
+                            prec.textContent = currentData + ' mi';
+                            fixOut.appendChild(prec);
+
+                            /*Adding sunrise/sunset*/
+                            prec = document.createElement('p');
+                            let sunRise = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.sunriseTime;
+                            let sunSet = response.data.timelines.find(t => t.timestep === "1d").intervals[clickRow - 2].values.sunsetTime;
+                            let sunriseTime = new Date(sunRise);
+                            let sunsetTime = new Date(sunSet);
+
+                            <!-- <How to format date>, (3), ChartGPT -->
+                            let options = {hour: 'numeric', minute: 'numeric', hour12: true, timeZone: 'America/Los_Angeles'  // Pacific Time Zone
+                            };
+                            let sunriseTimeF = sunriseTime.toLocaleTimeString('en-US', options);
+                            let sunsetTimeF = sunsetTime.toLocaleTimeString('en-US', options);
+
+                            prec.innerHTML = "Sunrise/Sunset: ";
+                            detailAdv.appendChild(prec);
+
+                            prec = document.createElement('p');
+                            prec.textContent = sunriseTimeF + "/" + sunsetTimeF;
+                            fixOut.appendChild(prec);
+
+                            header = document.getElementById('detailInfoBH');
+                            header.innerHTML = 'Weather Charts';
+
+                            dataParse = response;
+                            let imgElement2 = document.createElement('img');
+                            imgElement2.src = '/static/images/point-down-512.png';
+                            imgElement2.setAttribute('id', 'pointDown');
+                            let arrowD = document.getElementById('arrowImgD');
+                            arrowD.appendChild(imgElement2);
+                            let arrowImg = document.getElementById('pointDown');
+                            arrowImg.addEventListener('click', eventHandle);
+                            clickRow = -1;
+                            //storeMinMax(response);
+                        }
+                    }
+                }
+                catch(error)
+                {
+                    createError()
+                }
+            }
+            function createCard()
+            {
+                let card = document.createElement('div');
+                card.classList.add('card');
+                card.setAttribute('id','idCard');
+                document.body.appendChild(card);
+
+                /*Location Header inside Card*/
+                let cardHeader = document.createElement('p');
+                cardHeader.setAttribute('id','cardHeader');
+                cardHeader.classList.add("cardHeader");
+                let cardDiv = document.getElementById("idCard");
+                cardDiv.appendChild(cardHeader);
+
+                /*Detail Info Container*/
+                let cardDetail = document.createElement('div');
+                cardDetail.classList.add('cardDetail');
+                cardDetail.setAttribute('id', 'cardDetail');
+                cardDiv.appendChild(cardDetail);
+                let cardDetailDiv = document.getElementById('cardDetail');
+
+                /*Weather Symbol Info Container*/
+                let weatherSymbol = document.createElement('div');
+                weatherSymbol.classList.add('cardWeatherSymbol');
+                weatherSymbol.setAttribute('id','weatherSymbolID');
+                cardDiv.appendChild(weatherSymbol);
+                /*let weatherSymbolNote = document.createElement('p');
+                weatherSymbolNote.setAttribute('id', 'weatherSymbolNoteID');
+                let weatherSymbolID = document.getElementById('weatherSymbolID')
+                weatherSymbolID.appendChild(weatherSymbolNote);*/
+
+                /*Weather Temperature Container*/
+                let weatherTemp = document.createElement('div');
+                weatherTemp.classList.add('cardTemp');
+                weatherTemp.setAttribute('id','tempID');
+                cardDiv.appendChild(weatherTemp);
+
+                for(let i = 0; i < 6; i++)
+                {
+                    const newDiv = document.createElement('div');
+                    newDiv.classList.add('cardHumitidy');
+                    newDiv.id = items[i];
+                    cardDetailDiv.appendChild(newDiv);
+
+                    let header = document.createElement('p');
+                    header.id = itemsH[i];
+                    let itemDiv = document.getElementById(items[i]);
+                    itemDiv.appendChild(header);
+
+                    let imgElement = document.createElement('img');
+                    imgElement.src = `/static/images/${imgName[i]}.png`
+                    itemDiv.appendChild(imgElement);
+
+                    let number = document.createElement('p');
+                    number.id = itemsNum[i];
+                    itemDiv.appendChild(number);
+                }
+            }
+            function createTable()
+            {
+                let colName = ['Date', 'Status', 'Temp High', 'Temp Low', 'Wind Speed'];
+                let tableDiv = document.createElement('div');
+                tableDiv.classList.add('weatherTable');
+                tableDiv.setAttribute('id', 'tableDiv');
+                let table = document.createElement('table');
+                table.setAttribute('id', 'tableID');
+                let cardDiv = document.getElementById('idCard');
+                document.body.appendChild(tableDiv);
+                let tableDivOutput = document.getElementById('tableDiv');
+                tableDivOutput.appendChild(table);
+
+                let rows = 7;
+                let cols = 5;
+
+                for(let i = 0; i < rows; i++)
+                {
+                    let tableRow = document.createElement('tr');
+
+                    if(i === 0)
+                    {
+                        tableRow.classList.add('firstRow');
+                    }
+                    else
+                    {
+                        tableRow.classList.add('row');
+                    }
+
+                    for(let j = 0; j < cols; j++)
+                    {
+                        let tableCol = document.createElement('td');
+                        if(i === 0)
+                        {
+                            tableCol.textContent = colName[j];
+                        }
+                        else if(j === 1)
+                        {
+                            tableCol.id = 'col2' + i;
+                        }
+
+                        tableCol.classList.add('col'+j);
+
+                        tableRow.appendChild(tableCol);
+                    }
+                    table.appendChild(tableRow);
+                }
+                let tableClick = document.getElementById('tableID');
+                //const reset = document.getElementById('clear');
+                for(let i = 1; i < table.rows.length; i++)
+                {
+                    table.rows[i].addEventListener('click', function(event)
+                    {
+                       let rowClick = event.currentTarget;
+                       clickRow = rowClick.rowIndex+1;
+                       //reset.click();
+                        clearContainer()
+                       callAPI();
+                    })
+                }
+            }
+            function createDetail()
+            {
+                let detailInfo = document.createElement('div');
+                detailInfo.classList.add('detailInfo');
+                detailInfo.setAttribute('id','detailInfo');
+                document.body.appendChild(detailInfo);
+
+                let detailInfoH = document.createElement('p');
+                detailInfoH.classList.add('detailInfoH');
+                detailInfoH.setAttribute('id', 'detailInfoH')
+                let detailInfoCont = document.getElementById('detailInfo');
+                detailInfoCont.appendChild(detailInfoH);
+
+                let detailInfoCard = document.createElement('div');
+                detailInfoCard.classList.add('detailInfoCard');
+                detailInfoCard.setAttribute('id', 'detailInfoCard');
+                detailInfoCont.appendChild(detailInfoCard);
+
+                let detailInfoBasic = document.createElement('div');
+                detailInfoBasic.classList.add('detailInfoB');
+                detailInfoBasic.setAttribute('id','detailInfoB');
+                let detailInfoCardCont = document.getElementById('detailInfoCard');
+                detailInfoCardCont.appendChild(detailInfoBasic);
+
+                let detailInfoImg = document.createElement('div')
+                detailInfoImg.classList.add('detailInfoImg');
+                detailInfoImg.setAttribute('id', 'detailInfoImg');
+                detailInfoCardCont.appendChild(detailInfoImg);
+
+                let detailInfoAdv = document.createElement('div');
+                detailInfoAdv.classList.add('detailInfoAdv');
+                detailInfoAdv.setAttribute('id', 'detailInfoAdv');
+                detailInfoCardCont.appendChild(detailInfoAdv);
+
+                let detailInfoBH = document.createElement('p');
+                detailInfoBH.classList.add('detailInfoBH');
+                detailInfoBH.setAttribute('id', 'detailInfoBH')
+                document.body.appendChild(detailInfoBH);
+
+                //let anchor = document.createElement('a');
+                //anchor.setAttribute('id', "anchor");
+                let arrowImgD = document.createElement('div')
+                arrowImgD.classList.add('arrowImgD');
+                arrowImgD.setAttribute('id', 'arrowImgD');
+                //anchor.appendChild(arrowImgD);
+                document.body.appendChild(arrowImgD);
+
+            }
+            function eventHandle()
+            {
+                let image = document.getElementById('pointDown');
+                image.src = '/static/images/point-up-512.png';
+                storeMinMax()
+                image.removeEventListener('click', eventHandle);
+                image.addEventListener('click', eventHandle2);
+            }
+            function eventHandle2()
+            {
+                let image = document.getElementById('pointDown');
+                image.src = '/static/images/point-down-512.png';
+                let output = document.getElementById('expandSec');
+                output.remove();
+                image.scrollIntoView({block:'end'});
+                image.removeEventListener('click', eventHandle2);
+                image.addEventListener('click', eventHandle);
+            }
+            function createError()
+            {
+                let error = document.createElement('div');
+                error.classList.add('error');
+                let msg = document.createElement('p');
+                msg.innerHTML = 'No records have been found';
+                error.appendChild(msg);
+                document.body.appendChild(error);
+
+            }
+            function storeMinMax()
+            {
+                //let newSec = document.createElement("section")
+                //newSec.id = 'section1';
+                let exp = document.createElement('div');
+                exp.classList.add('expandSec');
+                exp.setAttribute('id', 'expandSec');
+                //document.body.appendChild(newSec);
+                document.body.appendChild(exp);
+                let sec = document.getElementById('arrowImgD');
+                sec.scrollIntoView({block: 'start'});
+                //let anchor = document.getElementById('anchor');
+                //anchor.href = "expandSec";
+
+
+                let expArea = document.getElementById('expandSec');
+                let chart1 = document.createElement('div');
+                chart1.classList.add('chart1');
+                chart1.setAttribute('id', 'chart1');
+                expArea.appendChild(chart1);
+
+                let chart2 = document.createElement('div');
+                chart2.classList.add('chart2');
+                chart2.setAttribute('id', 'chart2');
+                expArea.appendChild(chart2);
+
+                let response = dataParse;
+                const data = [];
+
+
+                /*let min = response.data.timelines.find(t => t.timestep === "current").intervals[0].values.temperatureMin;
+                let max = response.data.timelines.find(t => t.timestep === "current").intervals[0].values.temperatureMax;
+                let date = response.data.timelines.find(t => t.timestep === "current").intervals[0].startTime;
+                min = Number(min);
+                max = Number(max);
+                let dateF = Date.parse(date);
+                data.push([dateF, min, max]);*/
+
+                for(let i = 0; i < 6; i++)
+                {
+                    let min = response.data.timelines.find(t => t.timestep === "1d").intervals[i].values.temperatureMin;
+                    min = Number(min);
+                    let max = response.data.timelines.find(t => t.timestep === "1d").intervals[i].values.temperatureMax;
+                    max = Number(max);
+                    let date = response.data.timelines.find(t => t.timestep === "1d").intervals[i].startTime;
+                    let dateF = Date.parse(date);
+                    data.push([dateF, min, max]);
+                }
+                console.log(data);
+                <!-- <How to transform the array and work with High charts>, (2), ChartGPT -->
+                const dataMin = data.map(function(val) {return [val[0], val[1]];});
+                const dataMax = data.map(function(val) {return [val[0], val[2]];});
+
+                Highcharts.setOptions({
+                time: {
+                    useUTC: false
+                    }
+                });
+
+                const chart = Highcharts.chart('chart1', {
+                    title: {
+                        text: 'Temperature Ranges(Min, Max)'
+                    },
+                    legend:
+                        {
+                            enabled: false
+                        },
+                    xAxis: {
+                        type: 'datetime',
+                        dateTimeLabelFormats:{day: '%b-%e'},
+                        crosshair:{
+                            color: 'gray',
+                            width: 1,
+                            dashStyle: 'dot'
+                        }
+                    },
+                    yAxis:{
+                        title:{text: null}
+                    },
+                    /*tooltip:
+                        {
+                            share: true,
+                            formatter: function() {
+                                // Custom tooltip formatter
+                                let date = Highcharts.dateFormat('%b %d, %Y', this.x);
+                                let minTemp = this.points[0].y;  // Access the min temperature from the first series
+                                let maxTemp = this.points[1].y;  // Access the max temperature from the second series
+                                return date + '<br>' + minTemp.series.symbol + ' Temperature: ' + minTemp + ' - ' + maxTemp;  // Return formatted string
+                             }
+                        },*/
+                    tooltip:{
+                        /*pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}</b>)<br/>',*/
+                        /*split: false,*/
+                        shared: true,
+                        formatter: function()
+                        {
+                            let symbol = '●';
+                            <!-- <How to find the number of the series>, (2), ChartGPT -->
+                            let min = this.points.find(point => point.series.name === 'Min');
+                            let max = this.points.find(point => point.series.name === 'Max');
+                            let date = new Date(min.x);
+                            <!-- <Format Date>, (2), ChartGPT -->
+                            let options = {weekday: 'long', month: 'short', day: 'numeric'}
+                            let dateF = date.toLocaleDateString('en-US', options);
+
+                            return '<span style="font-size: 12px; margin-bottom: 10px;">' + dateF + '</span>' + "<br>" + '<span style="color: #1ba0fb;">' + symbol + '</span>' + ' '
+                                + "Temperature: " + '<span style = "font-weight: bold;">' + min.y + "°F - " + max.y + "°F" + '</span>';
+                        }
+                    },
+                    series: [{
+		                showInLegend: false,
+		                marker: false,
+		                type: 'arearange',
+		                data: data,
+		                fillColor: {
+			                linearGradient: [0, 0, 0, 200],
+			            stops: [
+				                [0, '#FFA500'],
+				                [1, '#ADD8E6']
+                            ]
+		                },
+                        tooltip: {enabled: false}
+                    }, {
+		                name: 'Max',
+		                type: 'line',
+		                data: dataMax,
+		                color: '#FFA500',
+                        marker:{symbol: 'circle', fillColor: '#1ba0fb', radius: 5},
+                        tooltip: {enabled: false}
+                    }, {
+                        name: 'Min',
+                        type: 'line',
+                        data: dataMin,
+                        color: '#FFA500',
+                        marker:{symbol: 'circle', fillColor: '#1ba0fb', radius: 5},
+                        tooltip: {enabled: false}
+                    }]
+                });
+
+                let meteogramInstance = new Meteogram(chart2);
+            }
+            <!-- <How to turn off Highcharts UTC function>, (1), ChartGPT -->
+            Highcharts.setOptions({time: {useUTC: false}});
+            function Meteogram(container)
+            {
+                // Parallel arrays for the chart data, these are populated as the JSON file
+                // is loaded
+                //this.symbols = [];
+                this.precipitations = [];
+                this.precipitationsError = []; // Only for some data sets
+                this.winds = [];
+                this.temperatures = [];
+                this.pressures = [];
+
+                // Initialize
+                this.json = dataParse;
+                this.container = container;
+
+                // Run
+                this.parseYrData();
+            }
+            Meteogram.prototype.parseYrData = function ()
+            {
+
+                let pointStart;
+
+                if (!this.json) {
+                    return this.error();
+                }
+
+                let timelinesF = this.json.data.timelines;
+                let oneHourTime = timelinesF.find(t => t.timestep === '1h');
+
+                if(oneHourTime)
+                {
+                    oneHourTime.intervals.forEach(interval => {
+                        let time = interval.startTime;
+                        time = Date.parse(time);
+                        let temp = interval.values.temperature;
+                        let humidity = interval.values.humidity;
+                        let pres = interval.values.pressureSeaLevel;
+                        let windS = interval.values.windSpeed;
+                        let prec = interval.values.precipitationProbability;
+                        let windD = interval.values.windDirection;
+
+                        console.log("Time: " + time);
+
+                        this.temperatures.push({
+                            x: time,
+                            y: temp,
+                            // custom options used in the tooltip formatter
+                        })
+                        this.precipitations.push({
+                            x: time,
+                            y: Math.round(humidity)
+                        });
+                        this.winds.push({
+                            x:time,
+                            value: windS,
+                            direction: windD
+                        });
+                        this.pressures.push({
+                            x: time,
+                            y: Math.round(pres)
+                        });
+
+                    });
+                    this.createChart();
+                }
+                else
+                {
+                    console.log("Loop Fail");
+                }
+            }
+
+            Meteogram.prototype.createChart = function ()
+            {
+                this.chart = new Highcharts.Chart(this.getChartOptions(), chart => {
+                this.onChartLoad(chart);
+                });
+            };
+            Meteogram.prototype.onChartLoad = function (chart)
+            {
+                this.drawBlocksForWindArrows(chart);
+            };
+            Meteogram.prototype.drawBlocksForWindArrows = function (chart)
+            {
+                const xAxis = chart.xAxis[0];
+
+                for (
+                    let pos = xAxis.min, max = xAxis.max, i = 0;
+                    pos <= max + 36e5; pos += 36e5,
+                    i += 1
+                )
+                {
+
+                // Get the X position
+                const isLast = pos === max + 36e5,
+                    x = Math.round(xAxis.toPixels(pos)) + (isLast ? 0.5 : -0.5);
+
+                // Draw the vertical dividers and ticks
+                const isLong = this.resolution > 36e5 ?
+                    pos % this.resolution === 0 :
+                    i % 2 === 0;
+
+                chart.renderer
+                    .path([
+                        'M', x, chart.plotTop + chart.plotHeight + (isLong ? 0 : 28),
+                        'L', x, chart.plotTop + chart.plotHeight + 20,
+                        'Z'
+                    ])
+                .attr({
+                    stroke: chart.options.chart.plotBorderColor,
+                    'stroke-width': 1
+                })
+                .add();
+                }
+
+                // Center items in block
+                chart.get('windbarbs').markerGroup.attr({
+                translateX: chart.get('windbarbs').markerGroup.translateX + 8
+                });
+
+            };
+            Meteogram.prototype.getChartOptions = function ()
+            {
+                return {
+                        chart: {
+                        renderTo: this.container,
+                        marginBottom: 70,
+                        marginRight: 40,
+                        marginTop: 50,
+                        plotBorderWidth: 1,
+                        height: 500,
+                        alignTicks: false,
+                        scrollablePlotArea: {
+                            minWidth: 720
+                            }
+                        },
+
+                        defs: {
+                        patterns: [{
+                        id: 'precipitation-error',
+                        path: {
+                            d: [
+                                'M', 3.3, 0, 'L', -6.7, 10,
+                                'M', 6.7, 0, 'L', -3.3, 10,
+                                'M', 10, 0, 'L', 0, 10,
+                                'M', 13.3, 0, 'L', 3.3, 10,
+                                'M', 16.7, 0, 'L', 6.7, 10
+                            ].join(' '),
+                            stroke: '#68CFE8',
+                            strokeWidth: 1
+                        }
+                        }]
+                        },
+
+                        title: {
+                            text: 'Hourly Weatehr (For Next 5 Days)',
+                            align: 'center',
+                            style: {
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'ellipsis'
+                            }
+                        },
+                        tooltip: {
+                            shared: true,
+                            useHTML: true,
+                            headerFormat:
+                                '<small>{point.x:%A, %b %e, %H:%M} - ' +
+                                '{point.point.to:%H:%M}</small><br>'
+                        },
+
+                        xAxis: [{ // Bottom X axis
+                            type: 'datetime',
+                            tickInterval: 6 * 36e5, // two hours
+                            minorTickInterval: 36e5, // one hour
+                            tickLength: 0,
+                            gridLineWidth: 1,
+                            gridLineColor: 'rgba(128, 128, 128, 0.1)',
+                            startOnTick: false,
+                            endOnTick: false,
+                            minPadding: 0,
+                            maxPadding: 0,
+                            offset: 30,
+                            showLastLabel: true,
+                            labels: {
+                                format: '{value:%H}'
+                            },
+                            crosshair: true
+                        }, { // Top X axis
+                            linkedTo: 0,
+                            type: 'datetime',
+                            tickInterval: 24 * 3600 * 1000,
+                            labels: {
+                                format: '{value:<span style="font-size: 12px; font-weight: ' +
+                                    'bold">%a</span> %b %e}',
+                                align: 'left',
+                                x: 3,
+                                y: 8
+                            },
+                            opposite: true,
+                            tickLength: 20,
+                            gridLineWidth: 1
+                        }],
+
+                        yAxis: [{ // temperature axis
+                            title: {
+                                text: null
+                            },
+                            labels: {
+                                format: '{value}°',
+                                style: {
+                                    fontSize: '10px'
+                                },
+                                x: -3
+                            },
+                            plotLines: [{ // zero plane
+                                value: 0,
+                                color: '#BBBBBB',
+                                width: 1,
+                                zIndex: 2
+                            }],
+                            maxPadding: 0.3,
+                            minRange: 8,
+                            tickInterval: 1,
+                            gridLineColor: 'rgba(128, 128, 128, 0.1)'
+
+                        }, { // precipitation axis
+                            title: {
+                                text: null
+                            },
+                            labels: {
+                                enabled: false
+                            },
+                            gridLineWidth: 0,
+                            tickLength: 0,
+                            minRange: 10,
+                            min: 0
+
+                        }, { // Air pressure
+                            allowDecimals: false,
+                            title: { // Title on top of axis
+                                text: 'inHg',
+                                offset: 0,
+                                align: 'high',
+                                rotation: 0,
+                                style: {
+                                    fontSize: '10px',
+                                    color: 'orange'
+                                },
+                                textAlign: 'left',
+                                x: 3
+                            },
+                            labels: {
+                                style: {
+                                    fontSize: '8px',
+                                    color: 'orange'
+                                },
+                                y: 2,
+                                x: 3
+                            },
+                            gridLineWidth: 0,
+                            opposite: true,
+                            showLastLabel: false,
+                            min:0,
+                            max:58,
+                            tickInterval: 29
+                        }],
+
+                        legend: {
+                            enabled: false
+                        },
+
+                        plotOptions: {
+                            series: {
+                                pointPlacement: 'between'
+                            }
+                        },
+
+                        series: [{
+                            name: 'Temperature',
+                            data: this.temperatures,
+                            type: 'spline',
+                            marker: {
+                                enabled: false,
+                                states: {
+                                    hover: {
+                                        enabled: true
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                pointFormat: '<span style="color:{point.color}">\u25CF</span>' +
+                                    ' ' +
+                                    '{series.name}: <b>{point.y}°F</b><br/>'
+                            },
+                            zIndex: 1,
+                            color: '#FF3333',
+                            negativeColor: '#48AFE8'
+                        }, {
+                            name: 'Precipitation',
+                            data: this.precipitationsError,
+                            type: 'column',
+                            color: 'url(#precipitation-error)',
+                            yAxis: 1,
+                            groupPadding: 0,
+                            pointPadding: 0,
+                            tooltip: {
+                                valueSuffix: ' mm',
+                                pointFormat: '<span style="color:{point.color}">\u25CF</span>' +
+                                    ' ' +
+                                    '{series.name}: <b>{point.minvalue} mm - ' +
+                                    '{point.maxvalue} mm</b><br/>'
+                            },
+                            grouping: false,
+                            dataLabels: {
+                                enabled: this.hasPrecipitationError,
+                                filter: {
+                                    operator: '>',
+                                    property: 'maxValue',
+                                    value: 0
+                                },
+                                style: {
+                                    fontSize: '8px',
+                                    color: 'gray'
+                                }
+                            }
+                        }, {
+                            name: 'Humidity',
+                            data: this.precipitations,
+                            type: 'column',
+                            color: '#68CFE8',
+                            yAxis: 1,
+                            groupPadding: 0,
+                            pointPadding: 0,
+                            grouping: false,
+                            dataLabels: {
+                                enabled: !this.hasPrecipitationError,
+                                filter: {
+                                    operator: '>',
+                                    property: 'y',
+                                    value: 0
+                                },
+                                style: {
+                                    fontSize: '8px',
+                                    color: '#666'
+                                }
+                            },
+                            tooltip: {
+                                valueSuffix: ' %'
+                            }
+                        }, {
+                            name: 'Air pressure',
+                            color: 'orange',
+                            data: this.pressures,
+                            marker: {
+                                enabled: false
+                            },
+                            shadow: false,
+                            tooltip: {
+                                valueSuffix: ' inHg'
+                            },
+                            dashStyle: 'shortdot',
+                            yAxis: 2
+                        }, {
+                            name: 'Wind',
+                            type: 'windbarb',
+                            id: 'windbarbs',
+                            color: Highcharts.getOptions().colors[1],
+                            lineWidth: 1.5,
+                            data: this.winds,
+                            vectorLength: 10,
+                            yOffset: -20,
+                            xOffset: -5,
+                            tooltip: {
+                                valueSuffix: ' mph'
+                            },
+                            dataGrouping: {
+        										enabled: true,
+        										forced: true,
+        										units: [['hour', [2]]]  // Group by 2 hours
+                            }
+
+
+                        }]
+                    };
+
+                };
+
+            function findSymbol(status)
+            {
+                if (status == '1000')
+                {
+                    return "clear_day";
+                }
+                else if (status == '1100')
+                {
+                    return "mostly_clear_day";
+                }
+                else if(status == '1101')
+                {
+                    return "partly_cloudy_day";
+                }
+                else if(status == '1102')
+                {
+                    return "mostly_cloudy";
+                }
+                else if(status == '1001')
+                {
+                    return "cloudy";
+                }
+                else if(status == '1103')
+                {
+                    return "partly_cloudy_day"
+                }
+                else if(status == '2100')
+                {
+                    return "fog_light"
+                }
+                else if(status == '2000')
+                {
+                    return "fog"
+                }
+                else if(status == '2101')
+                {
+                    return "mostly_clear_day"
+                }
+                else if(status == '4000')
+                {
+                    return "drizzle"
+                }
+                else if(status == '4200')
+                {
+                    return "rain_light"
+                }
+                else if(status == '4001')
+                {
+                    return "rain"
+                }
+                else if(status == '4201')
+                {
+                    return "rain_heavy"
+                }
+                else if(status == '5001')
+                {
+                    return "flurries"
+                }
+                else if(status == '5100')
+                {
+                    return "snow_light"
+                }
+                else if(status == '5000')
+                {
+                    return "snow"
+                }
+                else if(status == '5101')
+                {
+                    return "snow_heavy"
+                }
+                else if(status == '6000')
+                {
+                    return "freezing_drizzle"
+                }
+                else if(status == '6200')
+                {
+                    return "freezing_rain_light"
+                }
+                else if(status == '6001')
+                {
+                    return "freezing_rain"
+                }
+                else if(status == '6201')
+                {
+                    return "freezing_rain_heavy"
+                }
+                else if(status == '7102')
+                {
+                    return "ice_pellets_light"
+                }
+                else if(status == '7000')
+                {
+                    return "ice_pellets"
+                }
+                else if(status == '7101')
+                {
+                    return "ice_pellets_heavy"
+                }
+                else if(status == '8000')
+                {
+                    return "tstorm"
+                }
+
+            }
+            function mapPrecipitation(num)
+            {
+                if(num == '0')
+                {
+                    return "N/A"
+                }
+                else if(num == '1')
+                {
+                    return "Rain"
+                }
+                else if(num == '2')
+                {
+                    return "Snow"
+                }
+                else if(num == '3')
+                {
+                    return "Freezing Rain"
+                }
+                else if(num == '4')
+                {
+                    return "Ice Pellets"
+                }
+
+            }
+
+
+            function extractData(jFile, name)
+            {
+                return jFile.name;
+            }
+        </script>
+    </head>
+    <body>
+        <div class="section1" id="sec1">
+            <div class="image-container">
+                <h1 class="banner-header">Weather Search</h1>
+                <p class="banner-sub">Fill out the form to get weather info !</p>
+            </div>
+            <div class="form-container">
+                <form id="myForm">
+                    <label for="addS" id="addS-desc">Street<span class="requiredField">*</span></label>
+                    <input type="text" id="addS" name="addS" required>
+                    
+                    <label for="addC" id="addC-desc">City<span class="requiredField">*</span></label>
+                    <input type="text" id="addC" name="addC" required>
+
+                    <!-- <How to force to show the first selection>, (1), ChartGPT -->
+                    <label for="addSt" id="addSt-desc">State<span class="requiredField">*</span></label>
+                    <select id="addSt" name="addSt" required>
+                        <option value="" disabled selected>Select your state</option>
+                        <option value="AL">Alabama</option>
+                        <option value="AK">Alaska</option>
+                        <option value="AZ">Arizona</option>
+                        <option value="AR">Arkansas</option>
+                        <option value="CA">California</option>
+                        <option value="CO">Colorado</option>
+                        <option value="CT">Connecticut</option>
+                        <option value="DE">Delaware</option>
+                        <option value="FL">Florida</option>
+                        <option value="GA">Georgia</option>
+                        <option value="HI">Hawaii</option>
+                        <option value="ID">Idaho</option>
+                        <option value="IL">Illinois</option>
+                        <option value="IN">Indiana</option>
+                        <option value="IA">Iowa</option>
+                        <option value="KS">Kansas</option>
+                        <option value="KY">Kentucky</option>
+                        <option value="LA">Louisiana</option>
+                        <option value="ME">Maine</option>
+                        <option value="MD">Maryland</option>
+                        <option value="MA">Massachusetts</option>
+                        <option value="MI">Michigan</option>
+                        <option value="MN">Minnesota</option>
+                        <option value="MS">Mississippi</option>
+                        <option value="MO">Missouri</option>
+                        <option value="MT">Montana</option>
+                        <option value="NE">Nebraska</option>
+                        <option value="NV">Nevada</option>
+                        <option value="NH">New Hampshire</option>
+                        <option value="NJ">New Jersey</option>
+                        <option value="NM">New Mexico</option>
+                        <option value="NY">New York</option>
+                        <option value="NC">North Carolina</option>
+                        <option value="ND">North Dakota</option>
+                        <option value="OH">Ohio</option>
+                        <option value="OK">Oklahoma</option>
+                        <option value="OR">Oregon</option>
+                        <option value="PA">Pennsylvania</option>
+                        <option value="RI">Rhode Island</option>
+                        <option value="SC">South Carolina</option>
+                        <option value="SD">South Dakota</option>
+                        <option value="TN">Tennessee</option>
+                        <option value="TX">Texas</option>
+                        <option value="UT">Utah</option>
+                        <option value="VT">Vermont</option>
+                        <option value="VA">Virginia</option>
+                        <option value="WA">Washington</option>
+                        <option value="WV">West Virginia</option>
+                        <option value="WI">Wisconsin</option>
+                        <option value="WY">Wyoming</option>
+                    </select>
+                
+                    <hr class="breakline">
+                    <p class="check-desc">Want us to auto-detect your location? Check here</p>
+                    
+                    <label>
+                        <input type="checkbox" name="currLoc" class="checkLoc" id="chckBox">
+                    </label>
+                    
+                    <button class="submitBtn" type="submit" id="submit">SUBMIT</button>
+                    <button class="clearBtn"  type="button" id="clear">CLEAR</button>
+
+                </form>
+            </div>
+        </div>
+
+
+    <script>
+        /*document.getElementById('submit').addEventListener('click', function()
+        {
+            preventDefault();
+            callAPI
+        });*/
+        document.getElementById('myForm').addEventListener('submit', function(event)
+        {
+            event.preventDefault();
+            checkBoxMark = document.getElementById('chckBox').checked;
+            callAPI();
+        })
+        document.getElementById('clear').addEventListener('click', function()
+        {
+            document.getElementById('myForm').reset();
+            clearContainer();
+            //checkBoxMark.checked = false;
+            checkBoxMark = false;
+            requireField();
+        });
+        //document.getElementById('clear').addEventListener('click', clearContainer);
+        document.getElementById('chckBox').addEventListener('click', requireField);
+        /*document.getElementById('pointDown').addEventListener('click', storeMinMax);*/
+
+        /*document.getElementById('submit').addEventListener('click', createCard);*/
+    </script>
+    </body>
+</html>
