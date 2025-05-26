@@ -6,7 +6,7 @@ A simple web application that displays current and forecast weather data for a g
 - **Tomorrow.io API**: Weather data provider  
 - **ipinfo.io**: IP geolocation  
 - **Highcharts**: Charts for visualizing forecast data
-= **Hosting**: Host on Google Cloud Platform
+- **Hosting**: Host on Google Cloud Platform
 
 ## Live Demo
 
