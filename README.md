@@ -10,7 +10,7 @@ A simple web application that displays current and forecast weather data for a g
 
 ## Live Demo
 
-- Visit the live site at [chuassign2 deployment](https://chuassign2.wl.r.appspot.com/)  
+- Visit the live site at [Online Demo](https://chuassign2.wl.r.appspot.com/)  
 
 ## Features
 
