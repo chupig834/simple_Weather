@@ -5,8 +5,8 @@ A simple web application that displays current and forecast weather data for a g
 - **Flask**: Python backend server  
 - **Tomorrow.io API**: Weather data provider  
 - **ipinfo.io**: IP geolocation  
-- **Highcharts**: Charts for visualizing forecast data  
-- **dotenv**: For managing environment variables  
+- **Highcharts**: Charts for visualizing forecast data
+= **Hosting**: Host on Google Cloud Platform
 
 ## Live Demo
 
